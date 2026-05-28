@@ -49,7 +49,7 @@ def run_pipeline():
     ]:
         _log_df(name, df_)
 
-    m1 = compute_m1(reserves, ruonia) if not reserves.empty and not ruonia.empty else pd.DataFrame()
+    m1 = compute_m1(reserves, ruonia) if not ruonia.empty else pd.DataFrame()
     m2 = compute_m2(repo, key_rate) if not repo.empty and not key_rate.empty else pd.DataFrame()
     m3 = compute_m3(ofz) if not ofz.empty else pd.DataFrame()
     m4 = compute_m4(tax) if not tax.empty else pd.DataFrame()

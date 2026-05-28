@@ -1,6 +1,7 @@
-date,cover_ratio,rate_spread,mad_cover,mad_rate_spread,flag_demand,m3_signal,m4_signal,m5_signal,lsi_raw,lsi,status,data_quality,data_quality_score
-2026-05-14,,,,,,,1.0,,0.0,0.5,Neutral / Partial data,PARTIAL_SIGNAL,0.2
-2026-05-19,,,,,,,1.0,,0.0,0.5,Neutral / Partial data,PARTIAL_SIGNAL,0.2
-2026-05-20,,,,,,,1.0,,0.0,0.5,Neutral / Partial data,PARTIAL_SIGNAL,0.2
-2026-05-27,,,,,,2.0,,,0.0,0.5,Neutral / Partial data,PARTIAL_SIGNAL,0.2
-2026-05-29,1.3034133101851852,0.00019999999999953388,1.3034133101851852,0.00019999999999953388,1.0,,,6.0,0.5714285714285714,0.6390927451628512,Positive / Partial data,PARTIAL_SIGNAL,0.4
+date,m1_signal,cover_ratio,rate_spread,mad_cover,mad_rate_spread,flag_demand,m3_signal,m4_signal,m5_signal,lsi_raw,lsi,lsi_smooth,status,data_quality,data_quality_score
+2026-05-14,,,,,,,,1.0,,0.0,0.5,0.5,Neutral / Partial data,PARTIAL_SIGNAL,0.2
+2026-05-19,,,,,,,,1.0,,0.0,0.5,0.5,Neutral / Partial data,PARTIAL_SIGNAL,0.2
+2026-05-20,,,,,,,,1.0,,0.0,0.5,0.5,Neutral / Partial data,PARTIAL_SIGNAL,0.2
+2026-05-26,0.0,,,,,,,,,-0.3,0.425557483188341,0.475185827729447,Neutral / Partial data,PARTIAL_SIGNAL,0.2
+2026-05-27,0.019999999999999574,,,,,,2.0,,,0.3,0.574442516811659,0.5,Neutral / Partial data,PARTIAL_SIGNAL,0.4
+2026-05-29,,1.3034133101851852,0.00019999999999953388,1.3034133101851852,0.00019999999999953388,1.0,,,6.0,0.4,0.598687660112452,0.5328958867041507,Neutral / Partial data,PARTIAL_SIGNAL,0.4

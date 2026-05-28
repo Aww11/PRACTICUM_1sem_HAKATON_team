@@ -6,13 +6,16 @@ def _robust_scale(s: pd.Series) -> pd.Series:
     s = pd.to_numeric(s, errors="coerce")
     valid = s.dropna()
     if valid.empty:
-        return s * np.nan
+        return pd.Series(np.nan, index=s.index)
+
     med = valid.median()
     q1 = valid.quantile(0.25)
     q3 = valid.quantile(0.75)
     iqr = q3 - q1
+
     if pd.isna(iqr) or iqr == 0:
         return (s - med).fillna(0.0)
+
     return ((s - med) / iqr).replace([np.inf, -np.inf], np.nan)
 
 
@@ -33,47 +36,58 @@ def build_lsi(df: pd.DataFrame) -> pd.DataFrame:
         "m4_signal": 0.05,
     }
 
-    feature_frames = []
+    feature_parts = []
     used_weights = []
     present_cols = []
 
     for col, w in weights.items():
         if col not in out.columns:
             continue
+
         s = out[col]
         if col == "flag_demand":
             feat = pd.to_numeric(s, errors="coerce").fillna(0.0)
         else:
             feat = _robust_scale(s).fillna(0.0)
-        feature_frames.append(feat * w)
+
+        feature_parts.append(feat * w)
         used_weights.append(w)
         present_cols.append(col)
 
-    if not feature_frames:
+    if not feature_parts:
+        out["lsi_raw"] = np.nan
         out["lsi"] = np.nan
         out["status"] = "Neutral / Insufficient data"
         out["data_quality"] = "NO_SIGNAL"
         out["data_quality_score"] = 0.0
         return out
 
-    weighted = pd.concat(feature_frames, axis=1)
+    weighted = pd.concat(feature_parts, axis=1)
     denom = sum(used_weights)
 
     out["lsi_raw"] = weighted.sum(axis=1) / max(denom, 1e-9)
+
     out["lsi"] = 1 / (1 + np.exp(-out["lsi_raw"]))
 
-    out["data_quality_score"] = out[present_cols].notna().sum(axis=1) / len(weights)
+    if "date" in out.columns:
+        out = out.sort_values("date").reset_index(drop=True)
+
+    out["lsi_smooth"] = out["lsi"].rolling(window=3, min_periods=1).mean()
+
+    n_present = out[present_cols].notna().sum(axis=1)
+    out["data_quality_score"] = n_present / len(weights)
+
     out["data_quality"] = np.where(
-        out[present_cols].notna().sum(axis=1) > 0,
+        n_present > 0,
         "PARTIAL_SIGNAL",
         "NO_SIGNAL",
     )
 
     out["status"] = np.where(
-        out["lsi"] > 0.6,
+        out["lsi_smooth"] > 0.6,
         "Positive / Partial data",
         np.where(
-            out["lsi"] < 0.4,
+            out["lsi_smooth"] < 0.4,
             "Negative / Partial data",
             "Neutral / Partial data",
         ),
@@ -92,9 +106,11 @@ def build_lsi(df: pd.DataFrame) -> pd.DataFrame:
         "m5_signal",
         "lsi_raw",
         "lsi",
+        "lsi_smooth",
         "status",
         "data_quality",
         "data_quality_score",
     ]
     keep = [c for c in keep if c in out.columns]
-    return out[keep].sort_values("date").reset_index(drop=True)
+
+    return out[keep].reset_index(drop=True)
