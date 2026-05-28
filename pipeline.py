@@ -19,6 +19,13 @@ from src.modules.m5_treasury import compute_m5
 from src.agg.lsi import build_lsi
 
 
+def _log_df(name, df_):
+    print("\n==", name, "==")
+    print("shape:", df_.shape)
+    print("columns:", df_.columns.tolist())
+    print(df_.head(3).to_string() if not df_.empty else df_.to_string())
+
+
 def run_pipeline():
     reserves = fetch_required_reserves()
     ruonia = fetch_ruonia()
@@ -40,33 +47,24 @@ def run_pipeline():
         ("tax", tax),
         ("treasury", treasury),
     ]:
-        print("\n==", name, "==")
-        print("shape:", df_.shape)
-        print("columns:", df_.columns.tolist())
-        print(df_.head(3).to_string())
+        _log_df(name, df_)
 
-    if any(x.empty for x in [reserves, ruonia, repo, key_rate, ofz, tax, treasury]):
-        return pd.DataFrame()
-
-    m1 = compute_m1(reserves, ruonia)
-    m2 = compute_m2(repo, key_rate)
-    m3 = compute_m3(ofz)
-    m4 = compute_m4(tax)
-    m5 = compute_m5(treasury)
+    m1 = compute_m1(reserves, ruonia) if not reserves.empty and not ruonia.empty else pd.DataFrame()
+    m2 = compute_m2(repo, key_rate) if not repo.empty and not key_rate.empty else pd.DataFrame()
+    m3 = compute_m3(ofz) if not ofz.empty else pd.DataFrame()
+    m4 = compute_m4(tax) if not tax.empty else pd.DataFrame()
+    m5 = compute_m5(treasury) if not treasury.empty else pd.DataFrame()
 
     for name, df_ in [("m1", m1), ("m2", m2), ("m3", m3), ("m4", m4), ("m5", m5)]:
-        print("\n==", name, "==")
-        print("shape:", df_.shape)
-        print("columns:", df_.columns.tolist())
-        print(df_.head(3).to_string())
+        _log_df(name, df_)
 
-    df = m1.merge(m2, on="date", how="outer", indicator=True)
-    print("\nmerge m1+m2:", df["_merge"].value_counts(dropna=False).to_dict())
-    df = df.drop(columns=["_merge"])
+    frames = [df for df in [m1, m2, m3, m4, m5] if not df.empty]
+    if not frames:
+        return pd.DataFrame()
 
-    df = df.merge(m3, on="date", how="outer")
-    df = df.merge(m4, on="date", how="outer")
-    df = df.merge(m5, on="date", how="outer")
+    df = frames[0]
+    for other in frames[1:]:
+        df = df.merge(other, on="date", how="outer")
 
     df = df.sort_values("date").reset_index(drop=True)
     df = build_lsi(df)

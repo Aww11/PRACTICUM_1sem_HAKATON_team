@@ -1,29 +1,32 @@
 import pandas as pd
 
+
 def compute_m5(treasury: pd.DataFrame) -> pd.DataFrame:
-    treasury = treasury.copy()
+    if treasury is None or treasury.empty:
+        return pd.DataFrame()
 
-    if "Дата" in treasury.columns:
-        treasury["date"] = pd.to_datetime(treasury["Дата"], dayfirst=True, errors="coerce")
-    elif "date" in treasury.columns:
-        treasury["date"] = pd.to_datetime(treasury["date"], errors="coerce")
-    else:
-        raise KeyError("treasury: no date column found")
+    df = treasury.copy()
+    if "date" not in df.columns:
+        return pd.DataFrame()
 
-    treasury["date"] = treasury["date"].dt.normalize()
-    treasury = treasury.dropna(subset=["date"]).drop_duplicates(subset=["date"]).sort_values("date")
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
 
-    if "balance" not in treasury.columns:
-        treasury["balance"] = pd.NA
-    else:
-        treasury["balance"] = pd.to_numeric(treasury["balance"], errors="coerce")
+    num_cols = [c for c in df.columns if c != "date"]
+    if not num_cols:
+        return pd.DataFrame()
 
-    if treasury["balance"].isna().all():
-        treasury["balance"] = range(len(treasury))
+    val_col = num_cols[0]
+    df[val_col] = pd.to_numeric(df[val_col], errors="coerce")
+    df = df.dropna(subset=["date", val_col])
 
-    treasury["delta"] = treasury["balance"].diff()
-    treasury["mad_balance"] = treasury["balance"].rolling(3, min_periods=1).median()
-    treasury["mad_delta"] = treasury["delta"].rolling(3, min_periods=1).median()
-    treasury["flag_budget_drain"] = (treasury["delta"] < 0).astype(int)
+    if df.empty:
+        return pd.DataFrame()
 
-    return treasury[["date", "balance", "delta", "mad_balance", "mad_delta", "flag_budget_drain"]]
+    out = (
+        df.groupby("date")[val_col]
+        .sum()
+        .reset_index(name="m5_signal")
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+    return out

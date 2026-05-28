@@ -1,51 +1,100 @@
 import pandas as pd
 import numpy as np
 
-DEFAULT_WEIGHTS = {"m1": 0.25, "m2": 0.20, "m3": 0.20, "m4": 0.10, "m5": 0.25}
+
+def _robust_scale(s: pd.Series) -> pd.Series:
+    s = pd.to_numeric(s, errors="coerce")
+    valid = s.dropna()
+    if valid.empty:
+        return s * np.nan
+    med = valid.median()
+    q1 = valid.quantile(0.25)
+    q3 = valid.quantile(0.75)
+    iqr = q3 - q1
+    if pd.isna(iqr) or iqr == 0:
+        return (s - med).fillna(0.0)
+    return ((s - med) / iqr).replace([np.inf, -np.inf], np.nan)
 
 
-def _scale_series(x: pd.Series) -> pd.Series:
-    x = pd.to_numeric(x, errors="coerce")
-    if x.notna().sum() == 0:
-        return pd.Series(np.nan, index=x.index, dtype="float64")
-    x = x.fillna(x.median())
-    lo = x.quantile(0.05)
-    hi = x.quantile(0.95)
-    if pd.isna(lo) or pd.isna(hi) or hi == lo:
-        return pd.Series(np.nan, index=x.index, dtype="float64")
-    return ((x - lo) / (hi - lo)).clip(0, 1)
+def build_lsi(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
 
-
-def build_lsi(df: pd.DataFrame, weights: dict = DEFAULT_WEIGHTS) -> pd.DataFrame:
     out = df.copy()
-    score = pd.Series(0.0, index=out.index, dtype="float64")
-    used = 0
 
-    for k, w in weights.items():
-        if k in out.columns:
-            x = _scale_series(out[k])
-            if x.notna().any():
-                score = score + x.fillna(x.median()) * w
-                used += 1
+    if "date" in out.columns:
+        out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.normalize()
 
-    if used == 0:
+    weights = {
+        "m1_signal": 0.30,
+        "flag_demand": 0.40,
+        "m5_signal": 0.15,
+        "m3_signal": 0.10,
+        "m4_signal": 0.05,
+    }
+
+    feature_frames = []
+    used_weights = []
+    present_cols = []
+
+    for col, w in weights.items():
+        if col not in out.columns:
+            continue
+        s = out[col]
+        if col == "flag_demand":
+            feat = pd.to_numeric(s, errors="coerce").fillna(0.0)
+        else:
+            feat = _robust_scale(s).fillna(0.0)
+        feature_frames.append(feat * w)
+        used_weights.append(w)
+        present_cols.append(col)
+
+    if not feature_frames:
         out["lsi"] = np.nan
         out["status"] = "Neutral / Insufficient data"
         out["data_quality"] = "NO_SIGNAL"
+        out["data_quality_score"] = 0.0
         return out
 
-    if score.isna().all() or score.max() == score.min():
-        out["lsi"] = np.nan
-        out["status"] = "Neutral / Insufficient data"
-        out["data_quality"] = "INSUFFICIENT_VARIANCE"
-        return out
+    weighted = pd.concat(feature_frames, axis=1)
+    denom = sum(used_weights)
 
-    out["lsi"] = 100 * (score - score.min()) / (score.max() - score.min())
-    out["lsi"] = out["lsi"].clip(0, 100)
-    out["status"] = pd.cut(
-        out["lsi"],
-        bins=[-1, 40, 70, 100],
-        labels=["GREEN", "YELLOW", "RED"],
+    out["lsi_raw"] = weighted.sum(axis=1) / max(denom, 1e-9)
+    out["lsi"] = 1 / (1 + np.exp(-out["lsi_raw"]))
+
+    out["data_quality_score"] = out[present_cols].notna().sum(axis=1) / len(weights)
+    out["data_quality"] = np.where(
+        out[present_cols].notna().sum(axis=1) > 0,
+        "PARTIAL_SIGNAL",
+        "NO_SIGNAL",
     )
-    out["data_quality"] = "OK"
-    return out
+
+    out["status"] = np.where(
+        out["lsi"] > 0.6,
+        "Positive / Partial data",
+        np.where(
+            out["lsi"] < 0.4,
+            "Negative / Partial data",
+            "Neutral / Partial data",
+        ),
+    )
+
+    keep = [
+        "date",
+        "m1_signal",
+        "cover_ratio",
+        "rate_spread",
+        "mad_cover",
+        "mad_rate_spread",
+        "flag_demand",
+        "m3_signal",
+        "m4_signal",
+        "m5_signal",
+        "lsi_raw",
+        "lsi",
+        "status",
+        "data_quality",
+        "data_quality_score",
+    ]
+    keep = [c for c in keep if c in out.columns]
+    return out[keep].sort_values("date").reset_index(drop=True)

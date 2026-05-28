@@ -1,21 +1,25 @@
 import pandas as pd
 
+
 def compute_m4(tax: pd.DataFrame) -> pd.DataFrame:
-    tax = tax.copy()
+    if tax is None or tax.empty:
+        return pd.DataFrame()
 
-    if "date" not in tax.columns:
-        tax["date"] = pd.NaT
-        if tax.shape[0] > 0:
-            tax["date"] = pd.date_range("2024-01-01", periods=len(tax), freq="7D")
+    df = tax.copy()
+    if "date" not in df.columns:
+        return pd.DataFrame()
 
-    tax["date"] = pd.to_datetime(tax["date"], errors="coerce").dt.normalize()
-    tax = tax.dropna(subset=["date"]).drop_duplicates(subset=["date"]).sort_values("date")
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+    df = df.dropna(subset=["date"])
 
-    for c in ["tax_week_flag", "end_of_month_flag", "end_of_quarter_flag"]:
-        if c not in tax.columns:
-            tax[c] = 0
+    if df.empty:
+        return pd.DataFrame()
 
-    if "seasonal_factor" not in tax.columns:
-        tax["seasonal_factor"] = 1.0
-
-    return tax[["date", "tax_week_flag", "end_of_month_flag", "end_of_quarter_flag", "seasonal_factor"]]
+    out = (
+        df.groupby("date")
+        .size()
+        .reset_index(name="m4_signal")
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+    return out

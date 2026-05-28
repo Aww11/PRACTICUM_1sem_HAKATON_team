@@ -1,60 +1,62 @@
 import pandas as pd
 
+
 def compute_m2(repo: pd.DataFrame, key_rate: pd.DataFrame) -> pd.DataFrame:
-    repo = repo.copy()
-    key_rate = key_rate.copy()
+    if repo is None or key_rate is None:
+        return pd.DataFrame()
 
-    if "date" not in repo.columns:
-        repo["date"] = pd.to_datetime(repo.iloc[:, 0], errors="coerce")
-    else:
-        repo["date"] = pd.to_datetime(repo["date"], errors="coerce")
+    if repo.empty or key_rate.empty:
+        return pd.DataFrame()
 
-    if "Date" in key_rate.columns:
-        key_rate["date"] = pd.to_datetime(key_rate["Date"], dayfirst=True, errors="coerce")
-    elif "date" in key_rate.columns:
-        key_rate["date"] = pd.to_datetime(key_rate["date"], dayfirst=True, errors="coerce")
-    else:
-        key_rate["date"] = pd.NaT
+    r = repo.copy()
+    k = key_rate.copy()
 
-    repo["date"] = repo["date"].dt.normalize()
-    key_rate["date"] = key_rate["date"].dt.normalize()
+    r["metric"] = r["metric"].astype(str).str.strip().str.lower()
+    r["value"] = pd.to_numeric(r["value"], errors="coerce")
+    r["date"] = pd.to_datetime(r["date"], errors="coerce").dt.normalize()
 
-    repo = repo.dropna(subset=["date"]).drop_duplicates(subset=["date"]).sort_values("date")
-    key_rate = key_rate.dropna(subset=["date"]).drop_duplicates(subset=["date"]).sort_values("date")
+    k["date"] = pd.to_datetime(k["date"], errors="coerce").dt.normalize()
+    k["key_rate"] = pd.to_numeric(k["key_rate"], errors="coerce")
 
-    if "cover_ratio" not in repo.columns:
-        if repo.shape[1] > 1:
-            repo["cover_ratio"] = pd.to_numeric(repo.iloc[:, 1], errors="coerce")
-        else:
-            repo["cover_ratio"] = pd.NA
-    else:
-        repo["cover_ratio"] = pd.to_numeric(repo["cover_ratio"], errors="coerce")
+    r = r.dropna(subset=["date", "value"])
+    k = k.dropna(subset=["date", "key_rate"]).sort_values("date")
 
-    if "rate_spread" not in repo.columns:
-        repo["rate_spread"] = pd.NA
-    else:
-        repo["rate_spread"] = pd.to_numeric(repo["rate_spread"], errors="coerce")
+    bids = r[r["metric"].str.contains("total bids received", na=False)][["date", "value"]].rename(
+        columns={"value": "total_bids"}
+    )
+    allotted = r[r["metric"].str.contains("total amount allotted", na=False)][["date", "value"]].rename(
+        columns={"value": "total_allotted"}
+    )
+    cutoff = r[
+        r["metric"].str.contains("cut-off rate", na=False)
+        | r["metric"].str.contains("cut off rate", na=False)
+    ][["date", "value"]].rename(columns={"value": "cut_off_rate"})
 
-    if "Rate" in key_rate.columns:
-        kr = key_rate[["date", "Rate"]].rename(columns={"Rate": "key_rate"})
-    elif "key_rate" in key_rate.columns:
-        kr = key_rate[["date", "key_rate"]].copy()
-    else:
-        if key_rate.shape[1] > 1:
-            kr = key_rate.iloc[:, :2].copy()
-            kr.columns = ["date", "key_rate"]
-        else:
-            kr = key_rate[["date"]].copy()
-            kr["key_rate"] = pd.NA
+    df = bids.merge(allotted, on="date", how="outer")
+    df = df.merge(cutoff, on="date", how="outer")
+    df = df.sort_values("date").reset_index(drop=True)
 
-    df = repo[["date", "cover_ratio", "rate_spread"]].merge(kr, on="date", how="outer")
+    if df.empty:
+        return pd.DataFrame()
 
-    df["cover_ratio"] = pd.to_numeric(df["cover_ratio"], errors="coerce")
-    df["rate_spread"] = pd.to_numeric(df["rate_spread"], errors="coerce")
-    df["key_rate"] = pd.to_numeric(df["key_rate"], errors="coerce")
+    df = pd.merge_asof(
+        df.sort_values("date"),
+        k[["date", "key_rate"]].sort_values("date"),
+        on="date",
+        direction="backward",
+    )
 
-    df["mad_cover"] = df["cover_ratio"].rolling(3, min_periods=1).median()
-    df["mad_rate_spread"] = df["rate_spread"].rolling(3, min_periods=1).median()
-    df["flag_demand"] = ((df["cover_ratio"] < 1.2) & (df["rate_spread"] > 0)).astype(int)
+    df["cover_ratio"] = df["total_bids"] / df["total_allotted"]
+    df["rate_spread"] = df["cut_off_rate"] - df["key_rate"]
 
-    return df[["date", "cover_ratio", "rate_spread", "mad_cover", "mad_rate_spread", "flag_demand"]]
+    df["mad_cover"] = df["cover_ratio"].rolling(window=3, min_periods=1).mean()
+    df["mad_rate_spread"] = df["rate_spread"].rolling(window=3, min_periods=1).mean()
+
+    df["flag_demand"] = (
+        (df["cover_ratio"].fillna(0) > 1.0)
+        & (df["rate_spread"].fillna(0) >= 0)
+    ).astype(int)
+
+    out = df[["date", "cover_ratio", "rate_spread", "mad_cover", "mad_rate_spread", "flag_demand"]].copy()
+    out = out.drop_duplicates(subset=["date"]).sort_values("date").reset_index(drop=True)
+    return out
