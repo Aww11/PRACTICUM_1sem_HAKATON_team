@@ -159,4 +159,5 @@ python backend_service.py // для запуска визуализации да
 ***
 
 ## Визуализация метрик
+
 ![alt text](template/visual.png)
