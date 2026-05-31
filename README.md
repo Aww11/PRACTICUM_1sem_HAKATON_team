@@ -7,6 +7,7 @@ Early warning system for ruble money market liquidity stress.
 pip install -r requirements.txt
 python pipeline.py
 python -m streamlit run app.py
+python backend_service.py // для запуска визуализации данных в браузере
 ```
 
 # Liquidity Stress Index (LSI)
@@ -156,3 +157,6 @@ python -m streamlit run app.py
 - `m1` пока работает в fallback-режиме.
 
 ***
+
+## Визуализация метрик
+![alt text](template/visual.png)

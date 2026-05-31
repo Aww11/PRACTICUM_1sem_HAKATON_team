@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RU Liquidity Sentinel</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --panel: #ffffff;
+        --ink: #172033;
+        --muted: #687286;
+        --line: #dfe5ef;
+        --blue: #2458d3;
+        --cyan: #0f9fb8;
+        --green: #138a57;
+        --yellow: #b46a00;
+        --red: #be3144;
+        --shadow: 0 18px 55px rgba(32, 45, 73, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+      }
+
+      aside {
+        background: #101827;
+        color: #eef3ff;
+        padding: 28px 22px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 30px;
+      }
+
+      .mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: #ffffff;
+        color: #101827;
+        font-weight: 800;
+      }
+
+      .brand strong {
+        display: block;
+        font-size: 15px;
+      }
+
+      .brand span {
+        color: #aeb8ce;
+        font-size: 12px;
+      }
+
+      nav {
+        display: grid;
+        gap: 8px;
+      }
+
+      nav a {
+        color: #dce5f7;
+        text-decoration: none;
+        padding: 11px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      nav a:hover,
+      nav a.active {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .side-note {
+        position: absolute;
+        left: 22px;
+        right: 22px;
+        bottom: 22px;
+        color: #aeb8ce;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      main {
+        padding: 28px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 22px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        height: 38px;
+        padding: 0 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 650;
+      }
+
+      button.primary {
+        background: var(--blue);
+        color: white;
+        border-color: var(--blue);
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .hero-grid {
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        align-items: stretch;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        padding: 26px;
+        min-height: 310px;
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 26px;
+        align-items: center;
+      }
+
+      .gauge {
+        width: 214px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: conic-gradient(var(--blue) calc(var(--value, 50) * 1%), #e7ecf5 0);
+        position: relative;
+      }
+
+      .gauge::after {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        background: white;
+        border-radius: 50%;
+      }
+
+      .gauge-value {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+      }
+
+      .gauge-value strong {
+        display: block;
+        font-size: 50px;
+        line-height: 1;
+      }
+
+      .gauge-value span {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        font-weight: 800;
+      }
+
+      .hero h2 {
+        margin: 0 0 8px;
+        font-size: 30px;
+        letter-spacing: 0;
+      }
+
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        margin-bottom: 14px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 800;
+        background: #edf2ff;
+        color: var(--blue);
+      }
+
+      .status.calm {
+        background: #e9f8f0;
+        color: var(--green);
+      }
+
+      .status.watch {
+        background: #fff4dc;
+        color: var(--yellow);
+      }
+
+      .status.unknown {
+        background: #eef1f6;
+        color: var(--muted);
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 20px;
+      }
+
+      .metric {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcff;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 5px;
+        font-size: 20px;
+      }
+
+      .section {
+        margin-top: 18px;
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+
+      .section h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .section small {
+        color: var(--muted);
+      }
+
+      .module-grid {
+        grid-template-columns: repeat(5, minmax(160px, 1fr));
+      }
+
+      .module {
+        padding: 16px;
+        min-height: 150px;
+      }
+
+      .module .top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .module h4 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .module p {
+        margin: 7px 0 16px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .pill {
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #eef3fb;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .module.active .pill {
+        background: #e5f6ff;
+        color: var(--cyan);
+      }
+
+      .bar {
+        height: 8px;
+        border-radius: 999px;
+        background: #ecf0f6;
+        overflow: hidden;
+      }
+
+      .bar span {
+        display: block;
+        height: 100%;
+        width: calc(var(--coverage, 0) * 100%);
+        background: linear-gradient(90deg, var(--blue), var(--cyan));
+      }
+
+      .module footer {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .chart-panel {
+        padding: 18px;
+      }
+
+      #chart {
+        width: 100%;
+        height: 260px;
+        display: block;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        max-height: 360px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      th {
+        background: #f7f9fd;
+        color: var(--muted);
+        font-size: 12px;
+        position: sticky;
+        top: 0;
+      }
+
+      .toast {
+        min-height: 20px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 1050px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        aside {
+          position: static;
+          height: auto;
+        }
+
+        .side-note {
+          position: static;
+          margin-top: 24px;
+        }
+
+        .hero-grid,
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .module-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        main {
+          padding: 18px;
+        }
+
+        .topbar,
+        .section-head {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .module-grid,
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          padding: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside>
+        <div class="brand">
+          <div class="mark">LSI</div>
+          <div>
+            <strong>RU Liquidity Sentinel</strong>
+            <span>ПСБ Казначейство</span>
+          </div>
+        </div>
+        <nav>
+          <a class="active" href="#overview">Обзор</a>
+          <a href="#modules">Модули</a>
+          <a href="#history">История</a>
+          <a href="#backtest">Backtest</a>
+        </nav>
+        <div class="side-note">
+          Демонстрационный frontend работает поверх существующей логики и читает те же данные из output/lsi_output.csv.
+        </div>
+      </aside>
+
+      <main>
+        <div class="topbar">
+          <div>
+            <h1>Liquidity Stress Cockpit</h1>
+            <p class="subtitle">Мониторинг стресса рублёвой ликвидности на публичных данных</p>
+          </div>
+          <div class="actions">
+            <button id="refresh">Обновить</button>
+            <button id="recalculate" class="primary">Пересчитать</button>
+          </div>
+        </div>
+
+        <section id="overview" class="grid hero-grid">
+          <div class="panel hero">
+            <div class="gauge" id="gauge">
+              <div class="gauge-value">
+                <strong id="lsiValue">—</strong>
+                <span>LSI</span>
+              </div>
+            </div>
+            <div>
+              <div id="statusBadge" class="status unknown">Нет данных</div>
+              <h2 id="statusTitle">Ожидание данных</h2>
+              <p id="statusText">
+                Запустите пересчёт или положите результат пайплайна в output/lsi_output.csv.
+              </p>
+              <div class="metrics">
+                <div class="metric">
+                  <span>Дата</span>
+                  <strong id="lastDate">—</strong>
+                </div>
+                <div class="metric">
+                  <span>Качество</span>
+                  <strong id="quality">—</strong>
+                </div>
+                <div class="metric">
+                  <span>Средний LSI</span>
+                  <strong id="meanLsi">—</strong>
+                </div>
+                <div class="metric">
+                  <span>Максимальный LSI</span>
+                  <strong id="maxLsi">—</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel chart-panel">
+            <div class="section-head">
+              <div>
+                <h3>Динамика индекса</h3>
+                <small id="rangeText">—</small>
+              </div>
+            </div>
+            <svg id="chart" role="img" aria-label="График LSI"></svg>
+          </div>
+        </section>
+
+        <section id="modules" class="section">
+          <div class="section-head">
+            <div>
+              <h3>Состояние модулей</h3>
+              <small>Показывает покрытие и последний доступный сигнал по каждому модулю</small>
+            </div>
+          </div>
+          <div id="modulesGrid" class="grid module-grid"></div>
+        </section>
+
+        <section id="history" class="section">
+          <div class="section-head">
+            <div>
+              <h3>Последние наблюдения</h3>
+              <small>Данные берутся из текущего CSV результата пайплайна</small>
+            </div>
+            <div id="toast" class="toast"></div>
+          </div>
+          <div class="panel table-wrap">
+            <table>
+              <thead id="tableHead"></thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="backtest" class="section">
+          <div class="section-head">
+            <div>
+              <h3>Backtest эпизодов</h3>
+              <small>Используется существующий модуль backtest без изменения логики</small>
+            </div>
+          </div>
+          <div class="panel table-wrap">
+            <table>
+              <thead id="backtestHead"></thead>
+              <tbody id="backtestBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const fmt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
+      const percent = new Intl.NumberFormat("ru-RU", { style: "percent", maximumFractionDigits: 0 });
+
+      const el = (id) => document.getElementById(id);
+      const valueOrDash = (value) => value === null || value === undefined || Number.isNaN(value) ? "—" : value;
+      const lsiToPercent = (value) => {
+        if (value === null || value === undefined) return 0;
+        return value <= 1 ? value * 100 : value;
+      };
+
+      async function fetchJson(url, options) {
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      }
+
+      function renderSummary(summary) {
+        if (!summary.available) return;
+
+        const lsi = summary.lsi_smooth ?? summary.lsi;
+        const displayLsi = lsiToPercent(lsi);
+        el("gauge").style.setProperty("--value", displayLsi);
+        el("lsiValue").textContent = fmt.format(displayLsi);
+        el("lastDate").textContent = summary.date ?? "—";
+        el("quality").textContent = summary.data_quality ?? "—";
+        el("meanLsi").textContent = summary.mean_lsi === null ? "—" : fmt.format(lsiToPercent(summary.mean_lsi));
+        el("maxLsi").textContent = summary.max_lsi === null ? "—" : fmt.format(lsiToPercent(summary.max_lsi));
+        el("rangeText").textContent = `${summary.range?.start ?? "—"} — ${summary.range?.end ?? "—"}, строк: ${summary.rows}`;
+
+        const badge = el("statusBadge");
+        badge.className = `status ${summary.status_bucket}`;
+        badge.textContent = summary.status ?? "Neutral";
+        el("statusTitle").textContent = titleFor(summary.status_bucket);
+        el("statusText").textContent = commentary(summary);
+      }
+
+      function titleFor(bucket) {
+        if (bucket === "watch") return "Есть признаки напряжения";
+        if (bucket === "calm") return "Сигнал спокойный";
+        if (bucket === "unknown") return "Недостаточно данных";
+        return "Нейтральный режим";
+      }
+
+      function commentary(summary) {
+        const quality = summary.data_quality_score === null ? "качество не рассчитано" : `качество данных ${percent.format(summary.data_quality_score)}`;
+        return `Индекс рассчитан существующим пайплайном без изменения формулы. Последнее наблюдение: ${summary.date}, ${quality}.`;
+      }
+
+      function renderModules(modules) {
+        el("modulesGrid").innerHTML = modules.map((module) => `
+          <article class="panel module ${module.active ? "active" : ""}" style="--coverage:${module.coverage}">
+            <div class="top">
+              <h4>${module.title}</h4>
+              <span class="pill">${module.active ? "сигнал есть" : "нет сигнала"}</span>
+            </div>
+            <p>${module.description}</p>
+            <div class="bar"><span></span></div>
+            <footer>
+              <span>Покрытие ${percent.format(module.coverage)}</span>
+              <strong>${valueOrDash(module.latest_value)}</strong>
+            </footer>
+          </article>
+        `).join("");
+      }
+
+      function renderChart(rows) {
+        const svg = el("chart");
+        const width = svg.clientWidth || 600;
+        const height = svg.clientHeight || 260;
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        svg.innerHTML = "";
+
+        const points = rows
+          .filter((row) => row.lsi !== null && row.lsi !== undefined)
+          .map((row) => ({ date: row.date, value: lsiToPercent(row.lsi_smooth ?? row.lsi) }));
+
+        if (points.length === 0) {
+          svg.innerHTML = `<text x="20" y="40" fill="#687286">Нет точек для графика</text>`;
+          return;
+        }
+
+        const pad = { left: 42, right: 18, top: 18, bottom: 34 };
+        const min = Math.min(...points.map((p) => p.value), 0);
+        const max = Math.max(...points.map((p) => p.value), 100);
+        const span = Math.max(max - min, 1);
+        const x = (i) => pad.left + (i / Math.max(points.length - 1, 1)) * (width - pad.left - pad.right);
+        const y = (v) => height - pad.bottom - ((v - min) / span) * (height - pad.top - pad.bottom);
+        const line = points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ");
+
+        svg.innerHTML = `
+          <line x1="${pad.left}" y1="${y(40)}" x2="${width - pad.right}" y2="${y(40)}" stroke="#dfe5ef" stroke-dasharray="4 5" />
+          <line x1="${pad.left}" y1="${y(70)}" x2="${width - pad.right}" y2="${y(70)}" stroke="#f0c36a" stroke-dasharray="4 5" />
+          <polyline points="${line}" fill="none" stroke="#2458d3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          ${points.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.value)}" r="4" fill="#0f9fb8"><title>${p.date}: ${fmt.format(p.value)}</title></circle>`).join("")}
+          <text x="${pad.left}" y="${height - 8}" fill="#687286" font-size="12">${points[0].date}</text>
+          <text x="${width - pad.right}" y="${height - 8}" text-anchor="end" fill="#687286" font-size="12">${points[points.length - 1].date}</text>
+        `;
+      }
+
+      function renderTable(rows, headId, bodyId) {
+        const tableRows = rows.slice(-20).reverse();
+        const cols = ["date", "lsi", "lsi_smooth", "status", "data_quality", "data_quality_score", "m1_signal", "flag_demand", "m3_signal", "m4_signal", "m5_signal"]
+          .filter((col) => tableRows.some((row) => Object.prototype.hasOwnProperty.call(row, col)));
+
+        el(headId).innerHTML = `<tr>${cols.map((col) => `<th>${col}</th>`).join("")}</tr>`;
+        el(bodyId).innerHTML = tableRows.map((row) => `
+          <tr>${cols.map((col) => `<td>${formatCell(row[col])}</td>`).join("")}</tr>
+        `).join("");
+      }
+
+      function renderBacktest(rows) {
+        if (!rows.length) {
+          el("backtestHead").innerHTML = "";
+          el("backtestBody").innerHTML = `<tr><td>Нет данных для backtest</td></tr>`;
+          return;
+        }
+        const cols = Object.keys(rows[0]);
+        el("backtestHead").innerHTML = `<tr>${cols.map((col) => `<th>${col}</th>`).join("")}</tr>`;
+        el("backtestBody").innerHTML = rows.map((row) => `
+          <tr>${cols.map((col) => `<td>${formatCell(row[col])}</td>`).join("")}</tr>
+        `).join("");
+      }
+
+      function formatCell(value) {
+        if (value === null || value === undefined || value === "") return "—";
+        if (typeof value === "number") return fmt.format(value);
+        return value;
+      }
+
+      async function loadAll() {
+        el("toast").textContent = "Обновляю данные...";
+        const [summary, modules, series, backtest] = await Promise.all([
+          fetchJson("/api/summary"),
+          fetchJson("/api/modules"),
+          fetchJson("/api/series"),
+          fetchJson("/api/backtest"),
+        ]);
+        renderSummary(summary);
+        renderModules(modules);
+        renderChart(series);
+        renderTable(series, "tableHead", "tableBody");
+        renderBacktest(backtest);
+        el("toast").textContent = `Готово: ${new Date().toLocaleTimeString("ru-RU")}`;
+      }
+
+      async function recalculate() {
+        const button = el("recalculate");
+        button.disabled = true;
+        el("toast").textContent = "Запускаю pipeline.py...";
+        try {
+          const result = await fetchJson("/api/recalculate", { method: "POST" });
+          el("toast").textContent = result.ok ? "Пайплайн завершён, обновляю экран..." : "Пайплайн вернул ошибку";
+          await loadAll();
+        } catch (error) {
+          el("toast").textContent = `Ошибка пересчёта: ${error.message}`;
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      el("refresh").addEventListener("click", loadAll);
+      el("recalculate").addEventListener("click", recalculate);
+      window.addEventListener("resize", () => fetchJson("/api/series").then(renderChart));
+      loadAll().catch((error) => {
+        el("toast").textContent = `Ошибка загрузки: ${error.message}`;
+      });
+    </script>
+  </body>
+</html>
